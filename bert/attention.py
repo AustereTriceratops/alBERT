@@ -11,6 +11,8 @@ def dot_product_attention(Q, K, V) -> torch.Tensor:
         K: a tensor with shape (batch, X, length, qk_channels) 
         Q: a tensor with shape (batch, X, length, qk_channels) 
         V: a tensor with shape (batch, X, length, output_channels)
+
+        Returns a tensor with shape (batch, X, length, output_channels)
         '''
         d = Q.shape[-1]
 
@@ -30,9 +32,9 @@ class Attention(nn.Module):
         if not hidden_channels:
             hidden_channels = in_channels
 
-        self.Q_projection = nn.Linear(in_channels=in_channels, out_channels=hidden_channels)
-        self.K_projection = nn.Linear(in_channels=in_channels, out_channels=hidden_channels)
-        self.V_projection = nn.Linear(in_channels=in_channels, out_channels=out_channels)
+        self.Q_projection = nn.Linear(in_channels, hidden_channels)
+        self.K_projection = nn.Linear(in_channels, hidden_channels)
+        self.V_projection = nn.Linear(in_channels, out_channels)
 
         self.dropout = nn.Dropout(dropout_rate)
 
@@ -42,7 +44,7 @@ class Attention(nn.Module):
 
         x: a tensor with shape (batch, length, input_channels) 
 
-        output: a tensor with shape (batch, length, output_channels)
+        Returns a tensor with shape (batch, length, output_channels)
         '''
         Q = self.Q_projection(x)
         K = self.K_projection(x)
@@ -53,11 +55,9 @@ class Attention(nn.Module):
         
         return out
 
-
-# TODO: write tests
-# TODO: return values of docstrings
-class MultiheadAttention(Attention):
-    def __init__(self, in_channels, out_channels=None, num_heads=1, hidden_channels=None, dropout_rate=0.1) -> None:
+# TODO: change how out_channels works
+class MultiheadAttention(nn.Module):
+    def __init__(self, in_channels, out_channels=None, hidden_channels=None, heads=1, dropout_rate=0.1) -> None:
         super().__init__()
 
         if not out_channels:
@@ -65,14 +65,15 @@ class MultiheadAttention(Attention):
         if not hidden_channels:
             hidden_channels = in_channels
 
-        self.total_hidden_channels = num_heads * hidden_channels
-        self.total_out_channels = num_heads * out_channels
-        self.num_heads = num_heads
+        self.out_channels = out_channels
         self.hidden_channels = hidden_channels
+        self.heads = heads
+        self.total_hidden_channels = heads * hidden_channels
+        self.total_out_channels = heads * out_channels
         
-        self.Q_projection = nn.Linear(in_channels=in_channels, out_channels=self.total_hidden_channels)
-        self.K_projection = nn.Linear(in_channels=in_channels, out_channels=self.total_hidden_channels)
-        self.V_projection = nn.Linear(in_channels=in_channels, out_channels=self.total_out_channels)
+        self.Q_projection = nn.Linear(in_channels, self.total_hidden_channels)
+        self.K_projection = nn.Linear(in_channels, self.total_hidden_channels)
+        self.V_projection = nn.Linear(in_channels, self.total_out_channels)
 
         self.dropout = nn.Dropout(dropout_rate)
 
@@ -80,14 +81,16 @@ class MultiheadAttention(Attention):
         '''
         Multi-head attention attention 
 
-        x: a tensor with shape (batch, length, channels) 
+        x: a tensor with shape (batch, length, channels)
+
+        Returns a tensor with shape (batch, length, num_heads * out_channels)
         '''
         batch_size = x.shape[0]
         seq_len = x.shape[1]
 
-        Q = self.Q_projection(x).reshape(batch_size, seq_len, self.num_heads, self.hidden_channels).permute(0, 2, 1, 3)
-        K = self.K_projection(x).reshape(batch_size, seq_len, self.num_heads, self.hidden_channels).permute(0, 2, 1, 3)
-        V = self.V_projection(x).reshape(batch_size, seq_len, self.num_heads, self.output_channels).permute(0, 2, 1, 3)
+        Q = self.Q_projection(x).reshape(batch_size, seq_len, self.heads, self.hidden_channels).permute(0, 2, 1, 3)
+        K = self.K_projection(x).reshape(batch_size, seq_len, self.heads, self.hidden_channels).permute(0, 2, 1, 3)
+        V = self.V_projection(x).reshape(batch_size, seq_len, self.heads, self.out_channels).permute(0, 2, 1, 3)
 
         out = dot_product_attention(Q, K, V)
         out = self.dropout(out)
