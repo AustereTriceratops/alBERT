@@ -7,7 +7,7 @@ from bert.attention import Attention
 
 class TestNnModules(unittest.TestCase):
     def setUp(self) -> None:
-        self.attention = Attention(input_channels=12, output_channels=12, qk_channels=8)
+        self.attention = Attention(input_channels=12, output_channels=12, hidden_channels=8)
 
     def test_dot_product_attention_dimensions(self) -> None:
         q = torch.rand((10, 30, 8))

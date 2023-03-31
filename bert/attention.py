@@ -4,16 +4,22 @@ import torch.nn as nn
 import numpy as np
 
 class Attention(nn.Module):
-    def __init__(self, input_channels=0, output_channels=0, qk_channels=0) -> None:
+    def __init__(self, input_channels, output_channels=None, hidden_channels=None, dropout_rate=0.1) -> None:
         super().__init__()
 
-        # softmax will be applied over the channels
+        if not output_channels:
+            output_channels = input_channels
+        if not hidden_channels:
+            hidden_channels = input_channels
 
-        self.Q_projection = nn.Conv1d(kernel_size=1, in_channels=input_channels, out_channels=qk_channels)
-        self.K_projection = nn.Conv1d(kernel_size=1, in_channels=input_channels, out_channels=qk_channels)
+
+        self.Q_projection = nn.Conv1d(kernel_size=1, in_channels=input_channels, out_channels=hidden_channels)
+        self.K_projection = nn.Conv1d(kernel_size=1, in_channels=input_channels, out_channels=hidden_channels)
         self.V_projection = nn.Conv1d(kernel_size=1, in_channels=input_channels, out_channels=output_channels)
 
+        # softmax will be applied over the channels
         self.softmax = nn.Softmax(2)
+        self.dropout = nn.Dropout(dropout_rate)
 
 
     def forward(self, x) -> torch.Tensor:
@@ -23,8 +29,6 @@ class Attention(nn.Module):
         x: a tensor with shape (batch, length, input_channels) 
 
         output: a tensor with shape (batch, length, output_channels)
-
-        TODO: make compatible with dropout
         '''
         x = x.transpose(1, 2)
 
@@ -32,9 +36,9 @@ class Attention(nn.Module):
         K = self.K_projection( x ).transpose(1, 2)
         V = self.V_projection( x ).transpose(1, 2)
 
-        attn = self.dot_product_attention(Q, K, V)
+        out = self.dot_product_attention(Q, K, V)
 
-        return attn
+        return out
 
     def dot_product_attention(self, Q, K, V) -> torch.Tensor:
         '''
@@ -47,10 +51,10 @@ class Attention(nn.Module):
         d = Q.shape[2]
 
         x = torch.matmul(Q, torch.transpose(K, 1, 2)) / np.sqrt(d)
-        x = self.softmax(x)
-        attn = torch.matmul(x, V)
+        A = self.dropout(self.softmax(x))
+        out = torch.matmul(x, V)
 
-        return attn
+        return out
 
 
 class MultiheadAttention(Attention):
