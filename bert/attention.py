@@ -30,9 +30,9 @@ class Attention(nn.Module):
         if not hidden_channels:
             hidden_channels = in_channels
 
-        self.Q_projection = nn.Conv1d(kernel_size=1, in_channels=in_channels, out_channels=hidden_channels)
-        self.K_projection = nn.Conv1d(kernel_size=1, in_channels=in_channels, out_channels=hidden_channels)
-        self.V_projection = nn.Conv1d(kernel_size=1, in_channels=in_channels, out_channels=out_channels)
+        self.Q_projection = nn.Linear(in_channels=in_channels, out_channels=hidden_channels)
+        self.K_projection = nn.Linear(in_channels=in_channels, out_channels=hidden_channels)
+        self.V_projection = nn.Linear(in_channels=in_channels, out_channels=out_channels)
 
         self.dropout = nn.Dropout(dropout_rate)
 
@@ -44,12 +44,9 @@ class Attention(nn.Module):
 
         output: a tensor with shape (batch, length, output_channels)
         '''
-        x = x.transpose(1, 2)
-
-        # TODO: these should just be linear layers
-        Q = self.Q_projection( x ).transpose(1, 2)
-        K = self.K_projection( x ).transpose(1, 2)
-        V = self.V_projection( x ).transpose(1, 2)
+        Q = self.Q_projection(x)
+        K = self.K_projection(x)
+        V = self.V_projection(x)
 
         out = dot_product_attention(Q, K, V)
         out = self.dropout(out)
@@ -78,25 +75,6 @@ class MultiheadAttention(Attention):
         self.V_projection = nn.Linear(in_channels=in_channels, out_channels=self.total_out_channels)
 
         self.dropout = nn.Dropout(dropout_rate)
-
-    def dot_product_attention(self, Q, K, V) -> torch.Tensor:
-        '''
-        Dot-product attention 
-
-        K: a tensor with shape (batch, heads, length, hidden_channels) 
-        Q: a tensor with shape (batch, heads, length, hidden_channels) 
-        V: a tensor with shape (batch, heads, length, output_channels)
-
-        returns a tensor with shape (batch, heads, length, output_channels)
-        '''
-        d = Q.shape[-1]
-
-        x = torch.matmul(Q, torch.transpose(K, 2, 3)) / np.sqrt(d)
-        A = self.dropout(self.softmax(x))
-                         
-        out = torch.matmul(A, V)
-
-        return out
 
     def forward(self, x) -> torch.Tensor:
         '''
