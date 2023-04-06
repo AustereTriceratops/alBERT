@@ -58,6 +58,7 @@ class Attention(nn.Module):
 
         out = self.fc(out)
         out = self.dropout(out)
+        
         out += residual
         out = self.norm(out)
         
