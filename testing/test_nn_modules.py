@@ -7,8 +7,8 @@ from bert.attention import dot_product_attention, Attention, MultiheadAttention
 
 class TestNnModules(unittest.TestCase):
     def setUp(self) -> None:
-        self.attention = Attention(in_channels=12, out_channels=12, hidden_channels=8)
-        self.multiheadAttention = MultiheadAttention(in_channels=10, out_channels=10, hidden_channels=5, heads=3)
+        self.attention = Attention(model_dims=12, key_dims=16, value_dims=8)
+        self.multiheadAttention = MultiheadAttention(model_dims=10, key_dims=12, value_dims=8, heads=3)
 
     def test_dot_product_attention_dimensions(self) -> None:
         q = torch.rand((10, 30, 8))
@@ -31,7 +31,7 @@ class TestNnModules(unittest.TestCase):
 
         result = self.multiheadAttention(input)
 
-        self.assertEqual(result.shape, (2, 60, 30))
+        self.assertEqual(result.shape, input.shape)
 
 if __name__ == "__main__":
     unittest.main()
